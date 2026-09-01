@@ -22,6 +22,7 @@ WIDGET_USER_EMAIL = "user_email"
 
 # Defaults. Catalog is intentionally blank so each attendee must set their own.
 DEFAULT_SCHEMA = "mistplay_genie_workshop"
+CONFIG_TABLE = "_workshop_config"
 
 
 def setup_widgets(dbutils) -> None:
@@ -95,6 +96,42 @@ class WorkshopConfig:
         """Per-attendee Genie space name so 10-15 people don't collide."""
         suffix = self.user_email.split("@")[0].replace(".", "_") if self.user_email else "user"
         return f"mistplay_genie_workshop_{suffix}"
+
+    # ------------------------------------------------------------------ #
+    # Persistence — save once in notebook 01, load everywhere else
+    # ------------------------------------------------------------------ #
+    def save_config(self, spark) -> str:
+        """Persist config to a small Delta table so other notebooks can load it."""
+        self.ensure_schema(spark)
+        fqn = f"{self.full_schema}.{CONFIG_TABLE}"
+        from pyspark.sql import Row
+        rows = [Row(key=k, value=v) for k, v in {
+            "catalog": self.catalog,
+            "schema": self.schema,
+            "warehouse_id": self.warehouse_id,
+            "user_email": self.user_email,
+        }.items()]
+        spark.createDataFrame(rows).write.mode("overwrite").saveAsTable(fqn)
+        return fqn
+
+    @classmethod
+    def from_saved(cls, spark, catalog: str, schema: str = DEFAULT_SCHEMA) -> "WorkshopConfig":
+        """Load config from the Delta table saved by notebook 01."""
+        fqn = f"{catalog}.{schema}.{CONFIG_TABLE}"
+        try:
+            rows = {r["key"]: r["value"] for r in spark.table(fqn).collect()}
+        except Exception as e:
+            raise FileNotFoundError(
+                f"Config table {fqn} not found. Run notebook 01 first to save the config."
+            ) from e
+        cfg = cls(
+            catalog=rows.get("catalog", catalog),
+            schema=rows.get("schema", schema),
+            warehouse_id=rows.get("warehouse_id", ""),
+            user_email=rows.get("user_email", ""),
+        )
+        cfg.validate()
+        return cfg
 
     def ensure_schema(self, spark) -> None:
         """Create the catalog schema if it does not exist."""
