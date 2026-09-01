@@ -24,22 +24,27 @@ SEGMENTS = ["SMB", "Consumer", "Corporate"]
 CHANNELS = ["Mobile", "Web", "Store", "Partner"]
 CARRIERS = ["USPS", "FedEx", "UPS", "DHL"]
 # Payment methods & statuses are stored as CODES on purpose (Step 3 value matching).
-PAYMENT_METHODS = ["CC", "PYPL", "GIFT", "DEBIT"]
+# Opaque internal payment-gateway codes (PM01=Credit Card, PM02=PayPal,
+# PM03=Gift Card, PM04=Debit Card). Deliberately NOT self-describing — decoding
+# them is the Step 3 value-matching lesson.
+PAYMENT_METHODS = ["PM01", "PM02", "PM03", "PM04"]
 TXN_STATUSES = ["COMPLETED", "REFUNDED", "FAILED", "PENDING"]
 
-# geo_id, state_code, state_name, region_name, country_code, country_name
+# geo_id, state_code, region_name, country_code, country_name
+# NOTE: no full state_name column on purpose — "California" -> 'CA' must be taught
+# via value matching in Step 3, not read from a lookup column.
 GEOGRAPHIES = [
-    ("G01", "CA", "California", "West", "US", "United States"),
-    ("G02", "NY", "New York", "Northeast", "US", "United States"),
-    ("G03", "TX", "Texas", "South", "US", "United States"),
-    ("G04", "IL", "Illinois", "Midwest", "US", "United States"),
-    ("G05", "WA", "Washington", "West", "US", "United States"),
-    ("G06", "FL", "Florida", "Southeast", "US", "United States"),
-    ("G07", "MA", "Massachusetts", "Northeast", "US", "United States"),
-    ("G08", "ON", "Ontario", "Central Canada", "CA", "Canada"),
-    ("G09", "QC", "Quebec", "Central Canada", "CA", "Canada"),
-    ("G10", "BC", "British Columbia", "Western Canada", "CA", "Canada"),
-    ("G11", "AB", "Alberta", "Prairies", "CA", "Canada"),
+    ("G01", "CA", "West", "US", "United States"),
+    ("G02", "NY", "Northeast", "US", "United States"),
+    ("G03", "TX", "South", "US", "United States"),
+    ("G04", "IL", "Midwest", "US", "United States"),
+    ("G05", "WA", "West", "US", "United States"),
+    ("G06", "FL", "Southeast", "US", "United States"),
+    ("G07", "MA", "Northeast", "US", "United States"),
+    ("G08", "ON", "Central Canada", "CA", "Canada"),
+    ("G09", "QC", "Central Canada", "CA", "Canada"),
+    ("G10", "BC", "Western Canada", "CA", "Canada"),
+    ("G11", "AB", "Prairies", "CA", "Canada"),
 ]
 
 # product_name, subcategory, list_price, standard_cost
@@ -200,7 +205,7 @@ def _gen_orders(rng, customers, products, geos, n_orders: int) -> list[dict]:
 
 def _gen_transactions(rng, orders, customers) -> list[dict]:
     """One payment transaction per order header (grain = order)."""
-    geo_currency = {g[0]: ("CAD" if g[4] == "CA" else "USD") for g in GEOGRAPHIES}
+    geo_currency = {g[0]: ("CAD" if g[3] == "CA" else "USD") for g in GEOGRAPHIES}
     order_totals: dict[str, dict] = {}
     for line in orders:
         agg = order_totals.setdefault(
@@ -302,8 +307,7 @@ def _write_bronze_products(spark, cfg, products) -> int:
 
 
 def _write_bronze_geography(spark, cfg, geos) -> int:
-    cols = ["geo_id", "state_code", "state_name", "region_name",
-            "country_code", "country_name"]
+    cols = ["geo_id", "state_code", "region_name", "country_code", "country_name"]
     return _overwrite(spark, cfg.bronze("geography"), [tuple(g) for g in geos], cols)
 
 

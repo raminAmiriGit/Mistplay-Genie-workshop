@@ -68,11 +68,21 @@ Gold star schema (all tables carry rich comments):
 
 - **dim_customers** — segment, loyalty, `is_internal` flag (Step 6 default-exclude rule)
 - **dim_products** — electronics catalog with `list_price` / `standard_cost` (margin)
-- **dim_geography** — US states + Canadian provinces; `state_code`/`country_code`
-  kept as **codes** (Step 3 value matching)
+- **dim_geography** — US states + Canadian provinces; **only `state_code`** (no
+  `state_name` column, on purpose) so "California" must be taught in Step 3
 - **fact_orders** — line-item grain: revenue, discount, COGS
-- **fact_transactions** — payments with `status` (COMPLETED/REFUNDED/FAILED/PENDING)
-  and `currency` (USD/CAD) → exceptions & filters for Steps 4–5
+- **fact_transactions** — payments with **opaque `payment_method` codes**
+  (`PM01`–`PM04`, no lookup — agent mode can't decode them, the Step 3 lesson),
+  `status` (COMPLETED/REFUNDED/FAILED/PENDING) and `currency` (USD/CAD)
+
+### Designed to defeat Genie *agent mode*
+
+Genie's deep-research/agent mode profiles column values and joins dimensions, so
+easy Set B questions (e.g. "revenue in California") get answered before their
+step. The data is deliberately **vague** where a value-matching lesson lives:
+`payment_method` is opaque (`PM02`≠"PayPal" to any profiler) and there is no
+`state_name` to join. Each step's Set B fails for a reason the *next* step fixes —
+verified end-to-end by running all 7 notebooks in sequence.
 - **fact_shipments** — carrier, delivery, `on_time_flag`; ~12% of orders never ship
   (Step 5 anti-join)
 

@@ -44,11 +44,11 @@ def build_benchmarks(cfg) -> list[dict]:
 
     # ---- value matching (Step 3) ------------------------------------- #
     add("How much revenue came from payments made with PayPal?",
-        f"SELECT SUM(amount) FROM {t} WHERE payment_method='PYPL' AND status='COMPLETED'", "value-matching", "intermediate")
+        f"SELECT SUM(amount) FROM {t} WHERE payment_method='PM02' AND status='COMPLETED'", "value-matching", "intermediate")
     add("How many orders were paid by credit card?",
-        f"SELECT COUNT(DISTINCT order_id) FROM {t} WHERE payment_method='CC'", "value-matching", "intermediate")
+        f"SELECT COUNT(DISTINCT order_id) FROM {t} WHERE payment_method='PM01'", "value-matching", "intermediate")
     add("What is the total value of gift-card transactions?",
-        f"SELECT SUM(amount) FROM {t} WHERE payment_method='GIFT'", "value-matching", "intermediate")
+        f"SELECT SUM(amount) FROM {t} WHERE payment_method='PM03'", "value-matching", "intermediate")
     add("What is total net revenue in California?",
         f"SELECT SUM(o.net_amount) FROM {o} o JOIN {g} g ON o.geo_id=g.geo_id WHERE g.state_code='CA'", "value-matching", "intermediate")
     add("How many orders shipped to Ontario?",

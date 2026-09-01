@@ -27,7 +27,7 @@ explicitly asks to include them.
 - REVENUE DEFINITION: "Revenue" means net_amount from orders whose payment is \
 COMPLETED. Prefer the mv_order_analytics metric view for revenue, margin, and AOV.
 - ACTIVE CUSTOMER: An "active customer" is one who has placed at least one order \
-in the last 90 days.
+within 90 days of the most recent order date in the data.
 - ON-TIME / DELIVERY: Use the mv_shipment_performance metric view for on-time \
 rate and delivery-days questions.
 - ANSWER STYLE: Be concise. Lead with the number, then a one-line explanation. \

@@ -62,7 +62,7 @@ dimensions:
   - name: Region
     expr: geography.region_name
   - name: State
-    expr: geography.state_name
+    expr: geography.state_code
   - name: Country
     expr: geography.country_name
   - name: Category
@@ -116,7 +116,7 @@ dimensions:
   - name: Region
     expr: geography.region_name
   - name: State
-    expr: geography.state_name
+    expr: geography.state_code
   - name: Carrier
     expr: source.carrier
 

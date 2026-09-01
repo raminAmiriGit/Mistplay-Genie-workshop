@@ -152,8 +152,7 @@ _GOLD_COMMENTS: dict[str, tuple[str, dict[str, str]]] = {
         "Geography dimension covering US states and Canadian provinces. Keyed by geo_id.",
         {
             "geo_id": "Unique geography identifier (format G##).",
-            "state_code": "Two-letter state or province code.",
-            "state_name": "Full state or province name (e.g. California, Ontario).",
+            "state_code": "State or province code.",
             "region_name": "Sales region grouping (e.g. West, Northeast, Western Canada).",
             "country_code": "Two-letter country code: US=United States, CA=Canada.",
             "country_name": "Full country name.",
@@ -183,7 +182,7 @@ _GOLD_COMMENTS: dict[str, tuple[str, dict[str, str]]] = {
             "transaction_id": "Unique transaction identifier (format T#####).",
             "order_id": "Foreign key to the order (fact_orders.order_id).",
             "customer_id": "Foreign key to dim_customers.customer_id.",
-            "payment_method": "Payment method code used for the transaction.",
+            "payment_method": "Internal payment gateway code.",
             "txn_date": "Date the payment was attempted.",
             "amount": "Transaction amount (sum of order net_amount), in the transaction currency.",
             "status": "Transaction status code (values include COMPLETED, REFUNDED, FAILED, PENDING).",

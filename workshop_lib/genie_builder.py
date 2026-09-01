@@ -298,14 +298,23 @@ class GenieClient:
             query={"include_serialized_space": "true"},
         )
 
-    def patch_space(self, space_id: str, title: str, description: str,
-                    warehouse_id: str, serialized_space: str) -> dict:
-        body = {
-            "title": title,
-            "description": description,
-            "warehouse_id": warehouse_id,
-            "serialized_space": serialized_space,
-        }
+    def patch_space(self, space_id: str, title: str = "", description: str = "",
+                    warehouse_id: str = "", serialized_space: str = "") -> dict:
+        """Partial update. Only sends fields that are provided.
+
+        We deliberately do NOT re-assert `title` on every patch: the title maps to
+        a workspace node name (``<title>.geniespace.json``), and resending it can
+        collide with an existing/trashed node of the same name. Title is set once
+        at create time; patches only update content.
+        """
+        body: dict[str, Any] = {}
+        if serialized_space:
+            body["serialized_space"] = serialized_space
+        if warehouse_id:
+            body["warehouse_id"] = warehouse_id
+        if description:
+            body["description"] = description
+        # title intentionally omitted unless explicitly needed
         return self._w.api_client.do("PATCH", f"/api/2.0/genie/spaces/{space_id}", body=body)
 
     def load_builder(self, space_id: str) -> SpaceBuilder:
