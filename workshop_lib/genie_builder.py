@@ -198,6 +198,11 @@ class SpaceBuilder:
         return self._add_snippet("measures", sql, display_name, instruction, synonyms)
 
     # -- benchmarks.questions (Step 7) ------------------------------------ #
+    def clear_benchmarks(self) -> "SpaceBuilder":
+        """Remove all existing benchmark questions (so re-adds don't duplicate)."""
+        self._space.setdefault("benchmarks", {})["questions"] = []
+        return self
+
     def add_benchmark(self, question: str, answer_sql: str = "") -> "SpaceBuilder":
         entry: dict[str, Any] = {"id": _new_id(), "question": [question]}
         if answer_sql:

@@ -292,13 +292,13 @@ QUESTIONS: dict[int, dict] = {
              "sql": "SELECT ROUND(SUM(o.net_amount),2) FROM {orders} o JOIN {custs} c ON o.customer_id=c.customer_id JOIN {txns} t ON o.order_id=t.order_id WHERE c.is_internal=false AND t.status='COMPLETED'",
              "expect": "Completed revenue with is_internal=false.",
              "trap_sql": "SELECT ROUND(SUM(o.net_amount),2) FROM {orders} o JOIN {txns} t ON o.order_id=t.order_id WHERE t.status='COMPLETED'",
-             "trap_label": "agent includes internal accounts (not excluded by default)",
-             "why_fail": "the policy to exclude internal/test accounts by default is a business rule; the is_internal column exists but the agent won't filter on it unless instructed."},
+             "trap_label": "agent doesn't recognize is_internal as the test-account flag",
+             "why_fail": "the agent doesn't know that is_internal=true marks internal/test accounts to filter out; the column exists but its business meaning must be taught in an instruction."},
         ],
         "why_b": (
             "These depend on business RULES not in the data: fiscal calendar (starts "
-            "Feb 1), 'active customer' definition, and the default to exclude internal "
-            "accounts. Those are instructions."
+            "Feb 1), the 'active customer' definition, and what the is_internal flag "
+            "means. Those are instructions."
         ),
     },
     # ---- Step 6: instructions. Set B = genuinely impossible ----------- #
@@ -311,13 +311,13 @@ QUESTIONS: dict[int, dict] = {
             {"q": "How many active customers do we have?",
              "sql": "SELECT COUNT(DISTINCT customer_id) FROM {orders} WHERE order_date >= (SELECT date_sub(MAX(order_date),90) FROM {orders})",
              "expect": "Ordered within 90 days of the latest order — now defined."},
-            {"q": "What is total revenue (internal accounts excluded by default)?",
+            {"q": "What is total revenue, excluding internal test accounts?",
              "sql": "SELECT ROUND(SUM(o.net_amount),2) FROM {orders} o JOIN {custs} c ON o.customer_id=c.customer_id JOIN {txns} t ON o.order_id=t.order_id WHERE c.is_internal=false AND t.status='COMPLETED'",
-             "expect": "Completed revenue excluding is_internal — now the default."},
+             "expect": "Completed revenue with is_internal=false — the instruction teaches Genie that is_internal marks test accounts to exclude on request."},
         ],
         "why_a": (
             "Instructions encode the fiscal calendar, the active-customer definition, and "
-            "the default exclusion of internal accounts."
+            "what is_internal means (so Genie can exclude test accounts when asked)."
         ),
         "set_b": [
             {"q": "Which marketing campaign drove the most revenue?",

@@ -25,8 +25,8 @@ def build_benchmarks(cfg) -> list[dict]:
         B.append({"question": question, "sql": sql, "category": category, "difficulty": difficulty})
 
     # ---- basic aggregation (Step 2 level) ---------------------------- #
-    add("What is the total net revenue across all orders?",
-        f"SELECT SUM(net_amount) AS total_revenue FROM {o}", "aggregation", "basic")
+    add("What is the total net_amount across all order lines (regardless of payment status)?",
+        f"SELECT SUM(net_amount) AS total_net_amount FROM {o}", "aggregation", "basic")
     add("How many orders were placed through each sales channel?",
         f"SELECT order_channel, COUNT(DISTINCT order_id) AS orders FROM {o} GROUP BY order_channel", "aggregation", "basic")
     add("How many customers are in each segment?",
@@ -46,11 +46,12 @@ def build_benchmarks(cfg) -> list[dict]:
     add("How much revenue came from payments made with PayPal?",
         f"SELECT SUM(amount) FROM {t} WHERE payment_method='PM02' AND status='COMPLETED'", "value-matching", "intermediate")
     add("How many orders were paid by credit card?",
-        f"SELECT COUNT(DISTINCT order_id) FROM {t} WHERE payment_method='PM01'", "value-matching", "intermediate")
-    add("What is the total value of gift-card transactions?",
-        f"SELECT SUM(amount) FROM {t} WHERE payment_method='PM03'", "value-matching", "intermediate")
-    add("What is total net revenue in California?",
-        f"SELECT SUM(o.net_amount) FROM {o} o JOIN {g} g ON o.geo_id=g.geo_id WHERE g.state_code='CA'", "value-matching", "intermediate")
+        f"SELECT COUNT(DISTINCT order_id) FROM {t} WHERE payment_method='PM01' AND status='COMPLETED'", "value-matching", "intermediate")
+    add("What is the total value of completed gift-card transactions?",
+        f"SELECT SUM(amount) FROM {t} WHERE payment_method='PM03' AND status='COMPLETED'", "value-matching", "intermediate")
+    add("What is total revenue in California?",
+        f"SELECT SUM(o.net_amount) FROM {o} o JOIN {g} g ON o.geo_id=g.geo_id "
+        f"JOIN {t} t ON o.order_id=t.order_id WHERE g.state_code='CA' AND t.status='COMPLETED'", "value-matching", "intermediate")
     add("How many orders shipped to Ontario?",
         f"SELECT COUNT(DISTINCT s.order_id) FROM {s} s JOIN {g} g ON s.geo_id=g.geo_id WHERE g.state_code='ON'", "value-matching", "intermediate")
     add("How many transactions were in Canadian dollars?",
@@ -80,10 +81,10 @@ def build_benchmarks(cfg) -> list[dict]:
     add("Which customers placed orders that never shipped?",
         f"SELECT DISTINCT c.customer_id, c.customer_name FROM {o} o JOIN {c} c ON o.customer_id=c.customer_id "
         f"LEFT JOIN {s} s ON o.order_id=s.order_id WHERE s.shipment_id IS NULL", "joins-exceptions", "advanced")
-    add("List orders that were refunded but still shipped.",
+    add("Give me list of orders that were refunded but still shipped.",
         f"SELECT DISTINCT t.order_id FROM {t} t JOIN {s} s ON t.order_id=s.order_id WHERE t.status='REFUNDED'", "joins-exceptions", "advanced")
     add("What is revenue net of refunds (refunds counted as negative)?",
-        f"SELECT SUM(CASE WHEN status='REFUNDED' THEN -amount ELSE amount END) FROM {t} WHERE status IN ('COMPLETED','REFUNDED')", "joins-exceptions", "advanced")
+        f"SELECT SUM(CASE WHEN status='COMPLETED' THEN amount WHEN status='REFUNDED' THEN -amount ELSE 0 END) FROM {t}", "joins-exceptions", "advanced")
     add("How many orders were never shipped?",
         f"SELECT COUNT(*) FROM (SELECT DISTINCT o.order_id FROM {o} o LEFT JOIN {s} s ON o.order_id=s.order_id WHERE s.shipment_id IS NULL)", "joins-exceptions", "advanced")
     add("Show high-value orders over $500.",
@@ -91,11 +92,12 @@ def build_benchmarks(cfg) -> list[dict]:
     add("What is the top 10 customers by completed revenue?",
         f"SELECT o.customer_id, SUM(o.net_amount) rev FROM {o} o JOIN {t} t ON o.order_id=t.order_id "
         f"WHERE t.status='COMPLETED' GROUP BY o.customer_id ORDER BY rev DESC LIMIT 10", "joins-exceptions", "advanced")
-    add("Break revenue down by customer age group.",
+    add("Break completed revenue down by customer age group.",
         f"SELECT CASE WHEN datediff(current_date(), c.birth_date)/365 < 25 THEN 'Under 25' "
         f"WHEN datediff(current_date(), c.birth_date)/365 < 40 THEN '25-39' "
         f"WHEN datediff(current_date(), c.birth_date)/365 < 60 THEN '40-59' ELSE '60+' END age_group, "
-        f"SUM(o.net_amount) rev FROM {o} o JOIN {c} c ON o.customer_id=c.customer_id GROUP BY age_group", "joins-exceptions", "advanced")
+        f"SUM(o.net_amount) rev FROM {o} o JOIN {c} c ON o.customer_id=c.customer_id "
+        f"JOIN {t} t ON o.order_id=t.order_id WHERE t.status='COMPLETED' GROUP BY age_group", "joins-exceptions", "advanced")
     add("What is the refund rate as a percentage of all transactions?",
         f"SELECT SUM(CASE WHEN status='REFUNDED' THEN 1 ELSE 0 END)/COUNT(*) AS refund_rate FROM {t}", "joins-exceptions", "advanced")
     add("Which region has the most unshipped orders?",
@@ -103,34 +105,38 @@ def build_benchmarks(cfg) -> list[dict]:
         f"LEFT JOIN {s} s ON o.order_id=s.order_id WHERE s.shipment_id IS NULL GROUP BY g.region_name ORDER BY n DESC LIMIT 1", "joins-exceptions", "advanced")
 
     # ---- rules / instructions (Step 6) ------------------------------- #
-    add("What was our revenue last fiscal quarter?",
-        f"-- fiscal year starts Feb 1; compute fiscal quarter of order_date, exclude internal accounts\n"
+    add("What was our revenue in the last fiscal quarter?",
+        f"-- fiscal year starts Feb 1; fiscal Q2 = May-Jul. Revenue = completed only.\n"
+        f"SELECT SUM(o.net_amount) FROM {o} o JOIN {t} t ON o.order_id=t.order_id "
+        f"WHERE t.status='COMPLETED' AND o.order_date BETWEEN '2026-05-01' AND '2026-07-31'", "rules", "advanced")
+    add("What is total revenue, excluding internal test accounts?",
         f"SELECT SUM(o.net_amount) FROM {o} o JOIN {c} c ON o.customer_id=c.customer_id "
         f"JOIN {t} t ON o.order_id=t.order_id WHERE c.is_internal=false AND t.status='COMPLETED'", "rules", "advanced")
-    add("Show this quarter's revenue excluding internal test accounts.",
-        f"SELECT SUM(o.net_amount) FROM {o} o JOIN {c} c ON o.customer_id=c.customer_id "
-        f"WHERE c.is_internal=false", "rules", "advanced")
-    add("How many active customers do we have (ordered in last 90 days)?",
-        f"SELECT COUNT(DISTINCT customer_id) FROM {o} WHERE order_date >= date_sub(current_date(), 90)", "rules", "advanced")
+    add("How many active customers do we have (ordered within 90 days of the latest order)?",
+        f"SELECT COUNT(DISTINCT customer_id) FROM {o} WHERE order_date >= (SELECT date_sub(MAX(order_date),90) FROM {o})", "rules", "advanced")
     add("What is total revenue including internal accounts?",
-        f"SELECT SUM(net_amount) FROM {o}", "rules", "advanced")
-    add("Give a concise KPI summary for last month.",
+        f"SELECT SUM(o.net_amount) FROM {o} o JOIN {t} t ON o.order_id=t.order_id WHERE t.status='COMPLETED'", "rules", "advanced")
+    add("Give a concise KPI summary for the most recent month in the data.",
         f"SELECT MEASURE(`Total Revenue`) revenue, MEASURE(`Order Count`) orders, MEASURE(`Gross Margin Pct`) margin "
-        f"FROM {omv} WHERE `Order Month` = date_trunc('MONTH', date_sub(current_date(), 30))", "rules", "advanced")
+        f"FROM {omv} WHERE `Order Month` = (SELECT date_trunc('MONTH', MAX(order_date)) FROM {o})", "rules", "advanced")
     add("How many internal/test accounts are in the customer base?",
         f"SELECT COUNT(*) FROM {c} WHERE is_internal=true", "rules", "basic")
     add("What is completed revenue by country, excluding internal accounts?",
         f"SELECT g.country_name, SUM(o.net_amount) FROM {o} o JOIN {c} c ON o.customer_id=c.customer_id "
         f"JOIN {g} g ON o.geo_id=g.geo_id JOIN {t} t ON o.order_id=t.order_id "
         f"WHERE c.is_internal=false AND t.status='COMPLETED' GROUP BY g.country_name", "rules", "advanced")
-    add("What share of revenue comes from Corporate segment customers?",
+    add("What share of completed revenue comes from Corporate segment customers?",
         f"SELECT SUM(CASE WHEN c.segment='Corporate' THEN o.net_amount ELSE 0 END)/SUM(o.net_amount) "
-        f"FROM {o} o JOIN {c} c ON o.customer_id=c.customer_id", "rules", "advanced")
+        f"FROM {o} o JOIN {c} c ON o.customer_id=c.customer_id "
+        f"JOIN {t} t ON o.order_id=t.order_id WHERE t.status='COMPLETED'", "rules", "advanced")
 
     return B
 
 
 def add_all(builder, cfg) -> int:
+    # Idempotent: clear any existing benchmarks first so re-running Step 7
+    # always results in exactly this bank (no duplicates / 80-question pile-up).
+    builder.clear_benchmarks()
     bank = build_benchmarks(cfg)
     for item in bank:
         builder.add_benchmark(item["question"], item["sql"])

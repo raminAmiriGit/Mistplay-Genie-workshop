@@ -21,11 +21,13 @@ General guidance for answering questions about this data:
 - FISCAL CALENDAR: The fiscal year starts on February 1. Fiscal Q1 = Feb-Apr, \
 Q2 = May-Jul, Q3 = Aug-Oct, Q4 = Nov-Jan. When the user says "fiscal quarter" \
 or "fiscal year", use this calendar, not the standard calendar.
-- DEFAULT EXCLUSIONS: By default, EXCLUDE internal/test accounts \
-(dim_customers.is_internal = true) from all business metrics, unless the user \
-explicitly asks to include them.
-- REVENUE DEFINITION: "Revenue" means net_amount from orders whose payment is \
-COMPLETED. Prefer the mv_order_analytics metric view for revenue, margin, and AOV.
+- INTERNAL / TEST ACCOUNTS: dim_customers.is_internal = true marks internal/test \
+accounts. Include them by default; EXCLUDE them (filter is_internal = false) only \
+when the user asks to exclude internal or test accounts.
+- REVENUE DEFINITION: "Revenue" means money actually COLLECTED. Only transactions \
+with status='COMPLETED' count; FAILED and PENDING are NEVER counted as revenue, and \
+REFUNDED reduces revenue. Prefer the mv_order_analytics metric view for revenue, \
+margin, and AOV.
 - ACTIVE CUSTOMER: An "active customer" is one who has placed at least one order \
 within 90 days of the most recent order date in the data.
 - ON-TIME / DELIVERY: Use the mv_shipment_performance metric view for on-time \
