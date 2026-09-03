@@ -12,6 +12,8 @@ Layer / table naming convention (all inside one schema):
 
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass
 
 # Widget names — shared across every notebook so the workshop feels consistent.
@@ -23,6 +25,7 @@ WIDGET_USER_EMAIL = "user_email"
 # Defaults. Catalog is intentionally blank so each attendee must set their own.
 DEFAULT_SCHEMA = "mistplay_genie_workshop"
 CONFIG_TABLE = "_workshop_config"
+CONFIG_JSON = "_workshop_config.json"
 
 
 def setup_widgets(dbutils) -> None:
@@ -101,7 +104,12 @@ class WorkshopConfig:
     # Persistence — save once in notebook 01, load everywhere else
     # ------------------------------------------------------------------ #
     def save_config(self, spark) -> str:
-        """Persist config to a small Delta table so other notebooks can load it."""
+        """Persist config to a Delta table AND a local JSON pointer file.
+
+        The Delta table holds the full config.  The JSON file (written next
+        to the notebooks) stores only ``catalog`` + ``schema`` so that
+        notebooks 02-06 can locate the table without any widgets.
+        """
         self.ensure_schema(spark)
         fqn = f"{self.full_schema}.{CONFIG_TABLE}"
         from pyspark.sql import Row
@@ -112,11 +120,36 @@ class WorkshopConfig:
             "user_email": self.user_email,
         }.items()]
         spark.createDataFrame(rows).write.mode("overwrite").saveAsTable(fqn)
+
+        # Write a JSON pointer so downstream notebooks find the table
+        # without needing any widgets.
+        pointer_path = os.path.join(os.getcwd(), CONFIG_JSON)
+        with open(pointer_path, "w") as f:
+            json.dump({"catalog": self.catalog, "schema": self.schema}, f, indent=2)
+
         return fqn
 
     @classmethod
-    def from_saved(cls, spark, catalog: str, schema: str = DEFAULT_SCHEMA) -> "WorkshopConfig":
-        """Load config from the Delta table saved by notebook 01."""
+    def from_saved(cls, spark, catalog: str = "", schema: str = "") -> "WorkshopConfig":
+        """Load config from the Delta table saved by notebook 01.
+
+        When called **without** ``catalog`` / ``schema`` (the normal case
+        for notebooks 02-06), the method reads the local JSON pointer file
+        written by :meth:`save_config` to discover where the table lives.
+        """
+        if not catalog:
+            pointer_path = os.path.join(os.getcwd(), CONFIG_JSON)
+            try:
+                with open(pointer_path) as f:
+                    pointer = json.load(f)
+                catalog = pointer["catalog"]
+                schema = pointer.get("schema", DEFAULT_SCHEMA)
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    f"Config pointer {pointer_path} not found. "
+                    f"Run notebook 01 first to save the config."
+                )
+        schema = schema or DEFAULT_SCHEMA
         fqn = f"{catalog}.{schema}.{CONFIG_TABLE}"
         try:
             rows = {r["key"]: r["value"] for r in spark.table(fqn).collect()}
