@@ -1,4 +1,4 @@
-# Mistplay Genie Workshop
+# Databricks Genie Workshop
 
 A hands-on, fully code-generated workshop that walks attendees through **building a
 Databricks Genie space and progressively optimizing it** — then feeds it into the
@@ -14,7 +14,7 @@ Thin, cell-by-cell notebooks (`01`..`07`) each import the `workshop_lib` package
 call one function per step, so the logic is readable and reusable.
 
 ```
-Mistplay-Genie-workshop/
+Databricks-Genie-workshop/
 ├── workshop_lib/
 │   ├── config.py        # widgets → validated WorkshopConfig (catalog/schema/warehouse)
 │   ├── data_gen.py      # synthetic raw data (orders / transactions / shipments)

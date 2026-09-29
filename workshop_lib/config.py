@@ -23,7 +23,7 @@ WIDGET_WAREHOUSE_ID = "warehouse_id"
 WIDGET_USER_EMAIL = "user_email"
 
 # Defaults. Catalog is intentionally blank so each attendee must set their own.
-DEFAULT_SCHEMA = "mistplay_genie_workshop"
+DEFAULT_SCHEMA = "databricks_genie_workshop"
 CONFIG_TABLE = "_workshop_config"
 CONFIG_JSON = "_workshop_config.json"
 
@@ -98,7 +98,7 @@ class WorkshopConfig:
     def genie_space_name(self) -> str:
         """Per-attendee Genie space name so 10-15 people don't collide."""
         suffix = self.user_email.split("@")[0].replace(".", "_") if self.user_email else "user"
-        return f"mistplay_genie_workshop_{suffix}"
+        return f"databricks_genie_workshop_{suffix}"
 
     # ------------------------------------------------------------------ #
     # Persistence — save once in notebook 01, load everywhere else

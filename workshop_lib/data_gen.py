@@ -93,7 +93,7 @@ _LAST_NAMES = [
     "Tanaka", "Okoye", "Haddad", "Singh",
 ]
 _EMAIL_DOMAINS = ["globex.com", "initech.com", "umbrella.co", "hooli.com", "acme.io"]
-_INTERNAL_DOMAINS = ["mistplay-test.com", "databricks.com"]
+_INTERNAL_DOMAINS = ["databricks-test.com", "databricks.com"]
 
 
 # --------------------------------------------------------------------------- #
